@@ -1,0 +1,27 @@
+{
+  "name": "dayone-to-obsidian",
+  "version": "1.0.0",
+  "description": "Convert Day One journal exports to Obsidian-compatible Markdown",
+  "type": "module",
+  "main": "converter.js",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "dayone",
+    "obsidian",
+    "journal",
+    "markdown",
+    "converter"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

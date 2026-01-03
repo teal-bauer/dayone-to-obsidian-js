@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day One to Obsidian Converter</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #718096;
+      margin-bottom: 32px;
+    }
+
+    .drop-zone {
+      border: 2px dashed #cbd5e0;
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover {
+      border-color: #667eea;
+      background: #f7fafc;
+    }
+
+    .drop-zone.dragover {
+      border-color: #667eea;
+      background: #ebf4ff;
+      transform: scale(1.02);
+    }
+
+    .drop-zone.processing {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .drop-zone-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .drop-zone-text {
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+
+    .drop-zone-subtext {
+      color: #a0aec0;
+      font-size: 14px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .progress-container {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .progress-container.visible {
+      display: block;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      text-align: center;
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .result {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .result.visible {
+      display: block;
+    }
+
+    .result.success {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .result.error {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .download-btn {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 12px 24px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .options {
+      margin-top: 24px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .options label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #4a5568;
+    }
+
+    .options input[type="checkbox"] {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+    }
+
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      color: #a0aec0;
+      font-size: 12px;
+    }
+
+    footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day One to Obsidian</h1>
+  <p class="subtitle">Convert your Day One journal exports to Obsidian-compatible Markdown</p>
+
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon">📦</div>
+    <div class="drop-zone-text">Drop your Day One export ZIP here</div>
+    <div class="drop-zone-subtext">or click to browse</div>
+    <input type="file" id="fileInput" accept=".zip">
+  </div>
+
+  <div class="options">
+    <label>
+      <input type="checkbox" id="allowDuplicates">
+      Allow duplicate entries (same UUID and content)
+    </label>
+  </div>
+
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-text" id="progressText">Processing...</div>
+  </div>
+
+  <div class="result" id="result">
+    <div id="resultMessage"></div>
+    <a href="#" class="download-btn" id="downloadBtn" style="display: none;">Download Converted ZIP</a>
+  </div>
+
+  <footer>
+    <p>All processing happens in your browser. Your data never leaves your device.</p>
+    <p>
+      <a href="https://github.com/dayoneapp/dayone-export" target="_blank">Day One Export Format</a> |
+      <a href="https://obsidian.md" target="_blank">Obsidian</a>
+    </p>
+  </footer>
+
+  <!-- Dependencies from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+  <script type="module">
+    import { DayOneToObsidian } from './converter.js';
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const result = document.getElementById('result');
+    const resultMessage = document.getElementById('resultMessage');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const allowDuplicates = document.getElementById('allowDuplicates');
+
+    let outputBlob = null;
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        processFile(files[0]);
+      }
+    });
+
+    dropZone.addEventListener('click', () => {
+      if (!dropZone.classList.contains('processing')) {
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        processFile(fileInput.files[0]);
+      }
+    });
+
+    downloadBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (outputBlob) {
+        const url = URL.createObjectURL(outputBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'dayone-obsidian-export.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    async function processFile(file) {
+      if (!file.name.endsWith('.zip')) {
+        showError('Please select a ZIP file');
+        return;
+      }
+
+      // Reset state
+      dropZone.classList.add('processing');
+      progressContainer.classList.add('visible');
+      result.classList.remove('visible');
+      progressFill.style.width = '0%';
+      outputBlob = null;
+
+      const converter = new DayOneToObsidian({
+        allowDuplicates: allowDuplicates.checked,
+        onProgress: (info) => {
+          progressText.textContent = info.message;
+          if (info.progress !== undefined) {
+            progressFill.style.width = `${Math.round(info.progress * 100)}%`;
+          }
+        }
+      });
+
+      try {
+        outputBlob = await converter.convert(file);
+        showSuccess(`Conversion complete! Your Obsidian-compatible export is ready.`);
+        downloadBtn.style.display = 'inline-block';
+      } catch (error) {
+        console.error('Conversion error:', error);
+        showError(`Conversion failed: ${error.message}`);
+      } finally {
+        dropZone.classList.remove('processing');
+      }
+    }
+
+    function showSuccess(message) {
+      result.className = 'result visible success';
+      resultMessage.textContent = message;
+    }
+
+    function showError(message) {
+      result.className = 'result visible error';
+      resultMessage.textContent = message;
+      downloadBtn.style.display = 'none';
+    }
+  </script>
+</body>
+</html>
