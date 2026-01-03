@@ -71,17 +71,21 @@ export class DayOneToObsidian {
     const journalData = JSON.parse(journalContent);
     const entries = journalData.entries || [];
 
-    // Extract photos to attachments folder
-    this.onProgress({ stage: 'photos', message: 'Processing photos...' });
+    // Extract all media (photos, videos, audio, pdfs) to attachments folder
+    this.onProgress({ stage: 'media', message: 'Processing attachments...' });
 
-    const photoFiles = Object.keys(inputZip.files).filter(name =>
-      name.includes('/photos/') && !inputZip.files[name].dir
-    );
+    const mediaFolders = ['photos', 'videos', 'audios', 'pdfs'];
+    const mediaFiles = Object.keys(inputZip.files).filter(name => {
+      if (inputZip.files[name].dir) return false;
+      return mediaFolders.some(folder =>
+        name.includes(`/${folder}/`) || name.startsWith(`${folder}/`)
+      );
+    });
 
-    for (const photoPath of photoFiles) {
-      const filename = photoPath.split('/').pop();
-      const photoData = await inputZip.file(photoPath).async('arraybuffer');
-      outputZip.file(`attachments/${filename}`, photoData);
+    for (const mediaPath of mediaFiles) {
+      const filename = mediaPath.split('/').pop();
+      const mediaData = await inputZip.file(mediaPath).async('arraybuffer');
+      outputZip.file(`attachments/${filename}`, mediaData);
     }
 
     // Convert entries
@@ -187,10 +191,29 @@ export class DayOneToObsidian {
   }
 
   buildPhotoMap(entry) {
-    if (!entry.photos) return;
-
-    for (const photo of entry.photos) {
-      this.photoMap.set(photo.identifier, photo.md5);
+    // Build identifier -> md5 map for photos
+    if (entry.photos) {
+      for (const photo of entry.photos) {
+        this.photoMap.set(photo.identifier, { md5: photo.md5, type: photo.type || 'jpeg' });
+      }
+    }
+    // Also handle videos
+    if (entry.videos) {
+      for (const video of entry.videos) {
+        this.photoMap.set(video.identifier, { md5: video.md5, type: video.type || 'mov' });
+      }
+    }
+    // And audio
+    if (entry.audios) {
+      for (const audio of entry.audios) {
+        this.photoMap.set(audio.identifier, { md5: audio.md5, type: audio.type || 'm4a' });
+      }
+    }
+    // And PDFs
+    if (entry.pdfAttachments) {
+      for (const pdf of entry.pdfAttachments) {
+        this.photoMap.set(pdf.identifier, { md5: pdf.md5, type: 'pdf' });
+      }
     }
   }
 
@@ -332,11 +355,11 @@ export class DayOneToObsidian {
   convertImageReferences(text) {
     // Convert dayone-moment://IDENTIFIER to Obsidian ![[filename]]
     return text.replace(/!\[\]\(dayone-moment:\/\/([A-F0-9]+)\)/g, (match, identifier) => {
-      const md5 = this.photoMap.get(identifier);
-      if (md5) {
-        return `![[${md5}.jpeg]]`;
+      const media = this.photoMap.get(identifier);
+      if (media) {
+        return `![[${media.md5}.${media.type}]]`;
       } else {
-        return `<!-- Missing photo: ${identifier} -->`;
+        return `<!-- Missing media: ${identifier} -->`;
       }
     });
   }
